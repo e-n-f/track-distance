@@ -4,4 +4,4 @@ set ylabel "Number of trips of each length"
 set xrange [.01:5000]
 set yrange [:1000]
 set logscale xy
-plot "trips-per-distance" using ($1/3280.84):2 with lines, 9/x**.45, 125/x**1.5, 12000/x**2.2
+plot "trips-per-distance" using ($1/3280.84):2 with lines, 10/x**.45, 125/x**1.5, 125000/x**2.5
