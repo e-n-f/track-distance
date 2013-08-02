@@ -77,6 +77,16 @@ sub end {
 		$totaldist = 0;
 		$movingtime = 0;
 
+		for ($i = 0; $i + 1 <= $#times; $i++) {
+			if ($end{$times[$i]}) {
+				# Join adjacent tracks back together across a short break
+
+				if ($when{$times[$i + 1]} ne "" && $when{$times[$i + 1]} <= $when{$times[$i]} + 240) {
+					$end{$times[$i]} = 0;
+				}
+			}
+		}
+
 		for ($i = 0; $i < $#times; $i++) {
 			# print "$times[$i] $when{$times[$i]} $lat{$times[$i]},$lon{$times[$i]}\n";
 
@@ -96,10 +106,7 @@ sub end {
 			}
 
 			if ($end{$times[$i + 1]}) {
-				# Join adjacent tracks back together across a short break
-
-				if ($when{$times[$i + 2]} eq "" ||
-				    $when{$times[$i + 2]} > $when{$times[$i + 1]} + 240) {
+				{
 					print "$totaldist $totaltime $lat{$times[0]},$lon{$times[0]} $date $movingtime $file";
 					if ($movingtime != 0) {
 						printf(" %.3f", $totaldist / $movingtime * 3600 / 5280);
