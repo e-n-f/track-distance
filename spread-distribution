@@ -1,0 +1,19 @@
+#!/usr/bin/perl
+
+$min = 400;
+
+while (<>) {
+	chomp;
+	@list = split(/ /);
+
+	if ($#values > $min &&
+		$values[0] != $values[$#values]) {
+		printf("%.6f ", ($values[0] + $values[$#values]) / 2);
+		printf("%.6f\n",
+			($#values + 1) / ($values[$#values] - $values[0]));
+
+		@values = ();
+	}
+
+	push @values, $list[0];
+}
