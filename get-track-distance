@@ -76,6 +76,10 @@ sub end {
 		$totaltime = 0;
 		$totaldist = 0;
 		$movingtime = 0;
+		$stopped = 0;
+
+		$startlat = $lat{$times[0]};
+		$startlon = $lon{$times[0]};
 
 		for ($i = 0; $i + 1 <= $#times; $i++) {
 			if ($end{$times[$i]}) {
@@ -102,21 +106,30 @@ sub end {
 				$totaldist += $dist;
 				if ($speed > .5) {
 					$movingtime += $sec;
+					$stopped = 0;
+				} else {
+					$stopped += $sec;
+					if ($stopped >= 300) {
+						$end{$times[$i + 1]} = 1;
+					}
 				}
 			}
 
 			if ($end{$times[$i + 1]}) {
 				{
-					print "$totaldist $totaltime $lat{$times[0]},$lon{$times[0]} $date $movingtime $file";
+					print "$totaldist $totaltime $startlat,$startlon $date $movingtime $file";
 					if ($movingtime != 0) {
 						printf(" %.3f", $totaldist / $movingtime * 3600 / 5280);
 					} else {
 						print " notime";
 					}
 
+					$startlat = $lat{$times[$i + 1]};
+					$startlon = $lon{$times[$i + 1]};
+
 					print "\n";
 
-					$totaldist = $totaltime = $movingtime = 0;
+					$totaldist = $totaltime = $movingtime = $stopped = 0;
 				}
 			}
 		}
