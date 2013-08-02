@@ -1,0 +1,7 @@
+set terminal postscript color
+set xlabel "Trip length (km)"
+set ylabel "Number of trips of each length"
+set xrange [.01:5000]
+set yrange [:1000]
+set logscale xy
+plot "trips-per-distance" using ($1/3280.84):2 with lines, 36/x**.65, 325/x**1.5, 12000/x**2.2
