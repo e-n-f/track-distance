@@ -1,0 +1,135 @@
+#!/usr/bin/perl
+
+use XML::Parser;
+use POSIX;
+
+$lat = $lon = $time = "";
+$ENV{'TZ'} = "GMT";
+
+
+######
+#
+# From https://github.com/ericfischer/geotools/blob/master/plot-motion
+
+$pi = 4 * atan2(1, 1);
+$r = 6367 / 1.609344;
+$foot = 180 / $r / 5280 / $pi;
+
+sub dist {
+	my $lat1 = $_[0] * $pi/180;
+	my $lon1 = $_[1] * $pi/180;
+
+	my $lat2 = $_[2] * $pi/180;
+	my $lon2 = $_[3] * $pi/180;
+
+	my $latd = $lat2 - $lat1;
+	my $lond = ($lon2 - $lon1) * cos(($lat1 + $lat2) / 2);
+
+	my $d = sqrt($latd * $latd + $lond * $lond) * 180 / $pi / $foot;
+	if ($d >= 1000) {
+		$d = acos(sin($lat1) * sin($lat2) + cos($lat1) * cos($lat2) * cos($lon2 - $lon1)) * $r * 5280;
+	}
+
+	return $d;
+}
+
+######
+
+sub start {
+        my ($expat, $element, %tags) = @_;
+
+	if ($element eq "time") {
+		$intime = 1;
+		$time = "";
+	} elsif ($element eq "trkpt") {
+		$lat = $tags{'lat'};
+		$lon = $tags{'lon'};
+	}
+}
+
+sub end {
+        my ($expat, $element) = @_;
+
+	if ($element eq "time") {
+		$intime = 0;
+	} elsif ($element eq "trkpt") {
+		$lat{$time} = $lat;
+		$lon{$time} = $lon;
+	} elsif ($element eq "trk") {
+		$end{$time} = 1;
+	} elsif ($element eq "gpx") {
+		@times = sort(keys(%lat));
+
+		for $time (@times) {
+			if ($time =~ /(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/) {
+				($year, $month, $day, $hour, $minute, $second) = ($1, $2, $3, $4, $5, $6);
+				$date = "$year-$month-$day";
+				$year -= 1900;
+				$month -= 1;
+				$when{$time} = POSIX::mktime($second, $minute, $hour, $day, $month, $year, 0, 0, -1);
+			} else {
+				$when{$time} = 0;
+			}
+
+		}
+
+		$totaltime = 0;
+		$totaldist = 0;
+		$movingtime = 0;
+
+		for ($i = 0; $i < $#times; $i++) {
+			# print "$times[$i] $when{$times[$i]} $lat{$times[$i]},$lon{$times[$i]}\n";
+
+			$dist = dist($lat{$times[$i]}, $lon{$times[$i]}, $lat{$times[$i + 1]}, $lon{$times[$i + 1]});
+			$sec = $when{$times[$i + 1]} - $when{$times[$i]};
+
+			if ($sec > 0) {
+				# Can happen when times contain fractional seconds
+
+				$speed = $dist / $sec * 3600 / 5280;
+
+				$totaltime += $sec;
+				$totaldist += $dist;
+				if ($speed > .5) {
+					$movingtime += $sec;
+				}
+			}
+
+			if ($end{$times[$i + 1]}) {
+				# Join adjacent tracks back together across a short break
+
+				if ($when{$times[$i + 2]} eq "" ||
+				    $when{$times[$i + 2]} > $when{$times[$i + 1]} + 240) {
+					print "$totaldist $totaltime $lat{$times[0]},$lon{$times[0]} $date $movingtime $file";
+					if ($movingtime != 0) {
+						printf(" %.3f", $totaldist / $movingtime * 3600 / 5280);
+					} else {
+						print " notime";
+					}
+
+					print "\n";
+
+					$totaldist = $totaltime = $movingtime = 0;
+				}
+			}
+		}
+
+		%lat = ();
+		%lon = ();
+		%end = ();
+		%when = ();
+	}
+}
+
+sub char {
+        my ($expat, $string) = @_;
+
+	if ($intime) {
+		$time .= $string;
+	}
+}
+
+for $file (@ARGV) {
+	print STDERR "$file\n";
+	new XML::Parser(Handlers => { Start => \&start, End => \&end, Char => \&char })->parsefile($file);
+}
